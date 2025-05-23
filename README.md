@@ -7,10 +7,11 @@
 ## 🎥 Demonstration
 
 **Demo Video:**  
-_Link to demo video here_
+https://youtu.be/RuhRq3YNMEU_[- YouTube](https://youtu.be/RuhRq3YNMEU)
 
-**Debug Screenshots:**  
-_Insert debug screenshots here (e.g., G-buffer outputs, tile visualization, light masks)_
+**Screenshots:**  
+
+![s](pic/mask_render.png)
 
 ---
 
@@ -34,6 +35,10 @@ The `GPUProgram/GBufferWrite` shader handles rendering object groups into the G-
 
 > 🦴 Skinned models use a different shader: `GBufferWriteSkin_ps.cgvs`, which includes joint weight blending.
 
+![s](pic/position.png)
+
+![s](pic/normal.png)
+
 ---
 
 ### Deferred Shading
@@ -41,6 +46,8 @@ The `GPUProgram/GBufferWrite` shader handles rendering object groups into the G-
 The second stage performs lighting computations in screen space using the G-buffer. Implemented in `DeferredLightShading_PS.cgps`, lighting is calculated **per-pixel**, providing much better scalability than forward rendering.
 
 All necessary data—position, normal, albedo, glowness, specular—is read from the G-buffers, and lighting contributions are accumulated from all relevant light sources.
+
+![s](pic/render.png)
 
 ---
 
@@ -66,6 +73,8 @@ Since Prime Engine uses a traditional pipeline (CgGL), compute shaders are not s
 - In our test with 8 lights, only the red channel is utilized.
 
 This workaround replicates compute shader behavior and enables GPU-driven tiled lighting, even on legacy systems.
+
+![s](pic/tile.png)
 
 ---
 
