@@ -1,0 +1,29 @@
+#ifndef SampleWorkspace_StdMesh_Diffuse_PS_cgps_h
+#define SampleWorkspace_StdMesh_Diffuse_PS_cgps_h
+
+#include "APIAbstraction.gpu"
+#include "StandardConstants.fx"
+#include "StandardTextureResources.fx"
+#include "samplerhelper.fx"
+#include "lighthelper.fx"
+#include "StdMesh_Structs.fx"
+
+
+float4 StdMesh_Diffuse_PS(STD_MESH_PS_IN pIn)
+{
+	float4 combinedColor = sample2D(gDiffuseMapSampler, pIn.iTexCoord, gDiffuseMap);
+	return combinedColor;
+
+	// Normalize the position to fit into the 0-1 range for color output
+    // float3 posColor = (pIn.iPosW - float3(-10, -10, -10)) / float3(20, 20, 20);
+    
+    // Ensure the color is within valid range
+    // posColor = saturate(posColor); 
+    
+    // return float4(posColor, 1.0); // RGB = Position-based color, Alpha = 1
+
+}
+
+PS_wrapper_STD_MESH(StdMesh_Diffuse_PS)
+
+#endif

@@ -1,0 +1,75 @@
+// Constants and resource bindings
+cbuffer FrameCB : register(b0) {
+    int2 screenSize;    // (width, height) of render target
+    int2 tileCount;     // (#tilesX, #tilesY) in the grid
+};
+
+// Light structure (matches DEFERRED_SHADING_STRUCTS.fx definition)
+struct DeferredRenderLight {
+    float4 positionRadius; // xyz = position, w = radius
+    float4 color;          // rgb = color, a = intensity (or unused)
+    float3 direction;      // light direction (for directional/spot)
+    float  spotAngle;      // cos(spotAngle) (for spot lights)
+    int    type;           // 0 = point/spot, 1 = directional (parallel)
+    // ... (other parameters if needed)
+};
+
+// G-buffer textures (position, normal, albedo) and light buffers
+Texture2D<float4> gPositionTex : register(t0);
+Texture2D<float4> gNormalTex   : register(t1);
+Texture2D<float4> gAlbedoTex   : register(t2);
+StructuredBuffer<DeferredRenderLight> gLights      : register(t3);
+StructuredBuffer<uint>              gLightIndices : register(t4);
+StructuredBuffer<uint2>             gLightTileInfo: register(t5); 
+// UAV output for final lit colors
+RWTexture2D<float4> gOutput : register(u0);
+
+// Tile size (thread group dimensions)
+#define TILE_SIZE 16
+
+// Compute shader for tiled deferred lighting
+[numthreads(TILE_SIZE, TILE_SIZE, 1)]
+void DeferredLightShading_CS(uint3 dispatchThreadID : SV_DispatchThreadID,
+                             uint3 groupID          : SV_GroupID,
+                             uint3 groupThreadID    : SV_GroupThreadID)
+{
+    // Compute pixel coordinate from dispatch ID
+    uint2 pixel = dispatchThreadID.xy;
+    // Bounds check (handles edge tiles)
+    if (pixel.x >= screenSize.x || pixel.y >= screenSize.y) {
+        return;
+    }
+
+    // Load G-buffer data at this pixel
+    float4 posTex = gPositionTex.Load(int3(pixel, 0));
+    float3 position = posTex.xyz;            // world-space or view-space position
+    float3 normal   = normalize(gNormalTex.Load(int3(pixel, 0)).xyz);
+    float4 albedo   = gAlbedoTex.Load(int3(pixel, 0)); // diffuse albedo (rgba)
+    
+    // Determine this tile's index in the light-list buffers
+    uint tileX = groupID.x;
+    uint tileY = groupID.y;
+    uint tileIndex = tileY * tileCount.x + tileX;
+    uint2 tileInfo = gLightTileInfo[tileIndex]; 
+    uint offset = tileInfo.x;
+    uint count  = tileInfo.y;
+
+    // Accumulate lighting
+    float3 accumColor = float3(0.0, 0.0, 0.0);
+    for (uint i = 0; i < count; ++i) {
+        uint lightIndex = gLightIndices[offset + i];
+        DeferredRenderLight light = gLights[lightIndex];
+        // Branch based on light type (0 = point/spot, 1 = directional)
+        if (light.type == 1) {
+            // Directional (parallel) light contribution
+            accumColor += ParallelLightStatic(light, normal);
+        } else {
+            // Point or spot light contribution
+            accumColor += DeferredRenderLight(light, position, normal);
+        }
+    }
+
+    // Modulate by albedo (diffuse color) and write output (alpha=1)
+    float3 finalColor = accumColor * albedo.rgb;
+    gOutput[pixel] = float4(finalColor, 1.0);
+}

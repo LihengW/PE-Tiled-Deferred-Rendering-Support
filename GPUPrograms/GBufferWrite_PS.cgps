@@ -1,0 +1,30 @@
+#ifndef SampleWorkspace_ColoredMinimalMesh_PS_cgps_h
+#define SampleWorkspace_ColoredMinimalMesh_PS_cgps_h
+
+#include "APIAbstraction.gpu"
+#include "StandardConstants.fx"
+#include "StandardTextureResources.fx"
+#include "samplerhelper.fx"
+#include "lighthelper.fx"
+#include "shadowmaphelper.fx"
+#include "GBufferWrite_Structs.fx"
+
+DEFERRED_GBUFFER_OUTPUT DeferredGBuffer_PS(DEFERRED_MESH_PS_IN pIn)
+{
+	DEFERRED_GBUFFER_OUTPUT goutput;
+
+	float4 originalColor = sample2D(gDiffuseMapSampler, pIn.iTexCoord, gDiffuseMap);
+	goutput.gAlbedo = originalColor;
+
+	// float4 debug_color = make_float4(pIn.iColor, 1);
+	// goutput.gAlbedo = debug_color;
+	
+	goutput.gPosition = make_float4(pIn.iPosW, 1);
+	goutput.gNormal = make_float4(pIn.iNormalW, 1);
+
+	return goutput;
+}
+
+PS_wrapper_DEFERRED_MESH(DeferredGBuffer_PS)
+
+#endif

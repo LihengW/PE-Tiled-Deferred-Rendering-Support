@@ -1,0 +1,62 @@
+#ifndef DEFERRED_LIGHTSHADING_PS
+#define DEFERRED_LIGHTSHADING_PS
+
+#include "APIAbstraction.gpu"
+#include "StandardConstants.fx"
+#include "StandardTextureResources.fx"
+#include "samplerhelper.fx"
+#include "lighthelper.fx"
+#include "shadowmaphelper.fx"
+#include "DeferredLightShading_Structs.fx"
+
+float4 DeferredLightShading_PS(DEFERRED_SHADING_PS_IN pIn)
+{
+    float2 texCoord = pIn.iColor.xy;
+    int2 area_idx = (int2)(floor(saturate(texCoord) / 0.125f));
+
+    // Sample G-buffer textures
+    float4 gAlbedo   = sample2D(gDiffuseMapSampler, texCoord, gDiffuseMap);
+    float4 gNormal   = sample2D(gBumpMapSampler, texCoord, gBumpMap);
+    float4 gPosition = sample2D(gGlowMapSampler, texCoord, gGlowMap);
+    float3 gLightMask = sample2D(gSpecularMapSampler, texCoord, gSpecularMap);
+
+    uint3 uintMask = (uint3)(gLightMask * 255.0 + 0.5);
+
+    // float3 normalW = normalize(gNormal.xyz * 2.0 - 1.0); // decompress from [0,1] to [-1,1]
+    float3 perPixelNormal = gNormal.xyz;
+    // perPixelNormal = normalize(perPixelNormal);
+
+    SurfaceInfo defaultSurface;
+    defaultSurface.pos = gPosition.xyz;
+	defaultSurface.normal =	perPixelNormal;
+	defaultSurface.diffuse = gAlbedo;
+	defaultSurface.spec = make_float4(0.1, 0.1, 0.1, 20.0);
+
+    float4 combinedLighting = make_float4(0.0, 0.0, 0.0, 0.0);
+    combinedLighting +=	make_float4(ParallelLightStatic(defaultSurface, xyzgEyePosW_wDoMotionBlur.xyz), 1.0);
+
+    if ((uintMask.x >> 0) & 1 == 1) combinedLighting += make_float4(DeferredRenderLight(defaultSurface, gLight0, xyzgEyePosW_wDoMotionBlur.xyz, 1.0), 1.0);
+	if ((uintMask.x >> 1) & 1 == 1) combinedLighting += make_float4(DeferredRenderLight(defaultSurface, gLight1, xyzgEyePosW_wDoMotionBlur.xyz, 1.0), 1.0);
+	if ((uintMask.x >> 2) & 1 == 1) combinedLighting += make_float4(DeferredRenderLight(defaultSurface, gLight2, xyzgEyePosW_wDoMotionBlur.xyz, 1.0), 1.0);
+	if ((uintMask.x >> 3) & 1 == 1) combinedLighting += make_float4(DeferredRenderLight(defaultSurface, gLight3, xyzgEyePosW_wDoMotionBlur.xyz, 1.0), 1.0);
+    if ((uintMask.x >> 4) & 1 == 1) combinedLighting += make_float4(DeferredRenderLight(defaultSurface, gLight4, xyzgEyePosW_wDoMotionBlur.xyz, 1.0), 1.0);
+	if ((uintMask.x >> 5) & 1 == 1) combinedLighting += make_float4(DeferredRenderLight(defaultSurface, gLight5, xyzgEyePosW_wDoMotionBlur.xyz, 1.0), 1.0);
+	if ((uintMask.x >> 6) & 1 == 1) combinedLighting += make_float4(DeferredRenderLight(defaultSurface, gLight6, xyzgEyePosW_wDoMotionBlur.xyz, 1.0), 1.0);
+	if ((uintMask.x >> 7) & 1 == 1) combinedLighting += make_float4(DeferredRenderLight(defaultSurface, gLight7, xyzgEyePosW_wDoMotionBlur.xyz, 1.0), 1.0);
+
+    float3 mask_color = make_float3(area_idx.x * 0.125f, area_idx.y * 0.125f, 0.3f);
+
+    if ((uintMask.z >> 0) & 1 == 1) return float4(combinedLighting.xyz, 1.0f);
+    if ((uintMask.z >> 1) & 1 == 1) return float4(combinedLighting.xyz * (gLightMask.xyz + 0.5f), 1.0f);
+    if ((uintMask.z >> 2) & 1 == 1) return float4(gAlbedo.xyz, 1.0f);
+    if ((uintMask.z >> 3) & 1 == 1) return float4(gNormal.xyz, 1.0f);
+    if ((uintMask.z >> 4) & 1 == 1) return float4(gPosition.xyz, 1.0f);
+    if ((uintMask.z >> 5) & 1 == 1) return float4(gLightMask.xyz, 1.0f);
+
+    return float4(combinedLighting.xyz, 1.0f);
+
+}
+
+PS_wrapper_DEFERRED_SHADING(DeferredLightShading_PS)
+
+#endif

@@ -1,0 +1,22 @@
+#ifndef DEFERRED_GBUFFER_VS_cg
+#define DEFERRED_GBUFFER_VS_cg
+
+#include "APIAbstraction.gpu"
+#include "StandardConstants.fx"
+#include "GBufferWrite_Structs.fx"
+
+DEFERRED_MESH_PS_IN DeferredGBuffer_VS(DEFERRED_MESH_VS_IN vIn)
+{
+    DEFERRED_MESH_PS_IN vOut;
+    vOut.iPosH = mul(make_float4(vIn.iPosL, 1.0), gWVP);
+    vOut.iPosW =  mul(make_float4(vIn.iPosL, 1.0), gW).xyz;
+    vOut.iColor = float4(0.0, 1.0, 0.7, 1);
+    vOut.iNormalW = normalize(mul((float3x3)gW, vIn.iNormal));
+    vOut.iTexCoord = vIn.iTexCoord;
+    
+    return vOut;
+}
+
+VS_wrapper_DEFERRED_MESH(DeferredGBuffer_VS)
+
+#endif

@@ -1,0 +1,58 @@
+#ifndef DEFERRED_LIGHTSHADING_PS
+#define DEFERRED_LIGHTSHADING_PS
+
+#include "APIAbstraction.gpu"
+#include "StandardConstants.fx"
+#include "StandardTextureResources.fx"
+#include "samplerhelper.fx"
+#include "lighthelper.fx"
+#include "shadowmaphelper.fx"
+#include "DeferredLightShading_Structs.fx"
+
+float4 DeferredLightShading_PS(DEFERRED_SHADING_PS_IN pIn)
+{
+    float2 texCoord = pIn.iColor.xy;
+
+    // Sample G-buffer textures
+    float4 gAlbedo   = sample2D(gDiffuseMapSampler, texCoord, gDiffuseMap);
+    float4 gNormal   = sample2D(gBumpMapSampler, texCoord, gBumpMap);
+    float4 gPosition = sample2D(gGlowMapSampler, texCoord, gGlowMap);
+
+    float3 mask_palette[8] = {
+    float3(1,0,0), float3(0,1,0), float3(0,0,1),
+    float3(1,1,0), float3(0,1,1), float3(1,0,1),
+    float3(0.5,0.5,0.5), float3(1,1,1)
+    };
+
+    int2 area_idx = (int2)(floor(saturate(texCoord) / 0.125f));
+
+    // float3 normalW = normalize(gNormal.xyz * 2.0 - 1.0); // decompress from [0,1] to [-1,1]
+    float3 perPixelNormal = gNormal.xyz;
+    // perPixelNormal = normalize(perPixelNormal);
+
+    SurfaceInfo defaultSurface;
+    defaultSurface.pos = gPosition.xyz;
+	defaultSurface.normal =	perPixelNormal;
+	defaultSurface.diffuse = gAlbedo;
+	defaultSurface.spec = make_float4(0.1, 0.1, 0.1, 20.0);
+
+    float4 combinedLighting = make_float4(0.0, 0.0, 0.0, 0.0);
+    combinedLighting +=	make_float4(ParallelLightStatic(defaultSurface, xyzgEyePosW_wDoMotionBlur.xyz), 1.0);
+
+    combinedLighting +=	make_float4(DeferredRenderLight(defaultSurface, gLight0, xyzgEyePosW_wDoMotionBlur.xyz, 1.0), 1.0);
+	combinedLighting +=	make_float4(DeferredRenderLight(defaultSurface, gLight1, xyzgEyePosW_wDoMotionBlur.xyz, 1.0), 1.0);
+    
+	// combinedLighting +=	make_float4(DeferredRenderLight(defaultSurface, gLight2, xyzgEyePosW_wDoMotionBlur.xyz, 1.0), 1.0);
+	// combinedLighting +=	make_float4(DeferredRenderLight(defaultSurface, gLight3, xyzgEyePosW_wDoMotionBlur.xyz, 1.0), 1.0);
+    
+    float3 mask_color = make_float3(area_idx.x * 0.125f, area_idx.y * 0.125f, 0.3f);
+    return float4(combinedLighting.xyz * mask_color, 1.0f);
+
+    // return float4(gLight0.diffuse.xyz, 1.0);
+    // return float4(defaultSurface.diffuse.xyz, 1.0);
+
+}
+
+PS_wrapper_DEFERRED_SHADING(DeferredLightShading_PS)
+
+#endif

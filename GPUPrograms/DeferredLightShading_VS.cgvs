@@ -1,0 +1,19 @@
+#ifndef DEFERRED_LIGHTSHADING_VS
+#define DEFERRED_LIGHTSHADING_VS
+
+#include "APIAbstraction.gpu"
+#include "StandardConstants.fx"
+#include "DeferredLightShading_Structs.fx"
+
+DEFERRED_SHADING_PS_IN DeferredLightShading_VS(DEFERRED_SHADING_VS_IN vIn)
+{
+    DEFERRED_SHADING_PS_IN vOut;
+    vOut.iPosH = mul(make_float4(vIn.iPosL, 1.0), gWVP);
+    vOut.iPosW =  mul(make_float4(vIn.iPosL, 1.0), gW).xyz;
+    vOut.iColor = vIn.iColor;
+    return vOut;
+}
+
+VS_wrapper_DEFERRED_SHADING(DeferredLightShading_VS)
+
+#endif
